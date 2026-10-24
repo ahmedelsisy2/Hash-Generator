@@ -1,36 +1,12 @@
-"""
-hashing_gui.py - Hash Generator
-===============================
-An educational hashing demonstration built with Python's standard library only:
-  * tkinter  -> graphical user interface
-  * hashlib  -> MD5 and SHA-256 hash computation
 
-Run the application:   python hashing_gui.py
-Run the self-tests:    python hashing_gui.py --test
-
-NOTE: This is a general-purpose educational tool. MD5 is cryptographically
-broken (collisions can be produced), and plain, fast, unsalted hashes such as
-MD5 or SHA-256 alone are NOT suitable for storing passwords. Password storage
-requires a slow, salted, purpose-built function (e.g. Argon2, bcrypt, scrypt,
-or PBKDF2).
-"""
 import hashlib
 import sys
-
-# Tkinter is imported defensively so the hashing logic and the --test mode can
-# still run on systems where Tkinter is not installed (the GUI itself needs it).
 try:
     import tkinter as tk
     from tkinter import ttk, messagebox
     from tkinter.scrolledtext import ScrolledText
 except ImportError:  # pragma: no cover
     tk = None
-
-# --------------------------------------------------------------------------- #
-# Hashing logic (kept separate from the GUI so it can be tested without a GUI)
-# --------------------------------------------------------------------------- #
-
-# Maps the name shown in the dropdown to the hashlib constructor and metadata.
 ALGORITHMS = {
     "MD5":     {"func": hashlib.md5,    "bits": 128, "hex_len": 32},
     "SHA-256": {"func": hashlib.sha256, "bits": 256, "hex_len": 64},
@@ -38,53 +14,38 @@ ALGORITHMS = {
 
 
 def compute_hash(text: str, algorithm: str) -> str:
-    """Return the lowercase hexadecimal digest of `text` using `algorithm`.
-
-    The text is encoded as UTF-8 first, because hash functions operate on
-    bytes, not on Python strings. UTF-8 lets us support letters, digits,
-    spaces, symbols, accented characters, emoji, etc.
-
-    Raises:
-        ValueError: if the algorithm is not supported.
-    """
+ 
     if algorithm not in ALGORITHMS:
         raise ValueError(f"Unsupported algorithm: {algorithm!r}")
-    data = text.encode("utf-8")                      # str -> bytes
-    return ALGORITHMS[algorithm]["func"](data).hexdigest()  # bytes -> hex str
+    data = text.encode("utf-8")                     
+    return ALGORITHMS[algorithm]["func"](data).hexdigest() 
 
 
 def run_self_tests() -> bool:
-    """Run console tests for the hashing logic. Returns True if all pass."""
     results = []
 
     def check(name, condition):
         results.append(condition)
         print(f"[{'PASS' if condition else 'FAIL'}] {name}")
 
-    # 1. Determinism: same input + same algorithm -> same hash.
+    
     for alg in ALGORITHMS:
         check(f"{alg}: same input gives same hash",
               compute_hash("Hello, World!", alg) == compute_hash("Hello, World!", alg))
 
-    # 2. Different input -> different hash (generally).
+    
     for alg in ALGORITHMS:
         check(f"{alg}: different input gives different hash",
               compute_hash("hello", alg) != compute_hash("Hello", alg))
-
-    # 3. Output length depends on the algorithm, not on the input length.
     for alg, info in ALGORITHMS.items():
         for sample in ["", "a", "short", "x" * 10_000]:
             check(f"{alg}: length is {info['hex_len']} hex chars for input of "
                   f"{len(sample)} chars",
                   len(compute_hash(sample, alg)) == info["hex_len"])
-
-    # 4. MD5 and SHA-256 digests differ in length (128 vs 256 bits).
     md5_len = len(compute_hash("test", "MD5"))
     sha_len = len(compute_hash("test", "SHA-256"))
     check("MD5 = 32 hex chars (128 bits)", md5_len == 32 and md5_len * 4 == 128)
     check("SHA-256 = 64 hex chars (256 bits)", sha_len == 64 and sha_len * 4 == 256)
-
-    # 5. Known-answer tests (published reference values).
     check("MD5('hello') known value",
           compute_hash("hello", "MD5") == "5d41402abc4b2a76b9719d911017c592")
     check("SHA-256('hello') known value",
@@ -92,18 +53,12 @@ def run_self_tests() -> bool:
           "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824")
     check("MD5('') known value",
           compute_hash("", "MD5") == "d41d8cd98f00b204e9800998ecf8427e")
-
-    # 6. Special characters / UTF-8 do not crash and stay deterministic.
     special = "Pässwörd 123 !@#$%^&*() 你好 😀\tTab"
     check("UTF-8 / special characters are handled",
           compute_hash(special, "SHA-256") == compute_hash(special, "SHA-256")
           and len(compute_hash(special, "SHA-256")) == 64)
-
-    # 7. Spaces matter.
     check("Trailing space changes the hash",
           compute_hash("abc", "MD5") != compute_hash("abc ", "MD5"))
-
-    # 8. Unsupported algorithm is rejected.
     try:
         compute_hash("x", "SHA-999")
         check("Unsupported algorithm raises ValueError", False)
@@ -113,13 +68,6 @@ def run_self_tests() -> bool:
     ok = all(results)
     print(f"\n{sum(results)}/{len(results)} tests passed.")
     return ok
-
-
-# --------------------------------------------------------------------------- #
-# Graphical user interface
-# --------------------------------------------------------------------------- #
-
-# Colour palette and fonts used throughout the interface (consistent styling).
 COLOR_BG = "#f4f6fb"        # window background
 COLOR_HEADER = "#1f3a68"    # header bar
 COLOR_ACCENT = "#2f6fed"    # primary button
@@ -156,7 +104,6 @@ class HashGeneratorApp:
         self._build_body()
         self._build_status_bar()
 
-        # Keyboard shortcut: Ctrl+Enter generates the hash.
         self.root.bind("<Control-Return>", lambda _e: self.generate_hash())
         self.input_text.focus_set()
 
@@ -273,11 +220,8 @@ class HashGeneratorApp:
     # ---- button handlers -------------------------------------------------- #
     def generate_hash(self):
         """Read the input, hash it with the chosen algorithm, show the result."""
-        # "end-1c" drops the extra newline Tk always appends to a Text widget.
         text = self.input_text.get("1.0", "end-1c")
         algorithm = self.algorithm_var.get()
-
-        # Graceful handling of empty input.
         if text == "":
             self._set_result("")
             self.info_var.set("")
@@ -324,10 +268,6 @@ class HashGeneratorApp:
         self._set_status("Cleared. Enter some text and click “Generate Hash”.")
         self.input_text.focus_set()
 
-
-# --------------------------------------------------------------------------- #
-# Entry point
-# --------------------------------------------------------------------------- #
 
 def main():
     if "--test" in sys.argv:
